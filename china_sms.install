@@ -1,0 +1,64 @@
+<?php
+
+/**
+ * @file
+ * china sms installion file
+ */
+
+/**
+ * Implementation of hook_schema().
+ */
+function china_sms_schema() {
+  $schema = array();
+
+  $schema['china_sms_api'] = array(
+    'description' => 'SMS Framework supported api table',
+    'fields' => array(
+      'api_id' => array(
+        'description' => 'The primary identifier for this table',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'machine_name' => array(
+        'description' => 'machine name of plugin',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ),
+      'is_default' => array(
+        'description' => 'Whether the api is default(1) or not default(0)',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+      ),
+      'status' => array(
+        'description' => 'Whether the api is enabled(1) or not disabled(0)',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 1,
+        'size' => 'tiny',
+      ),
+      'balance' => array(
+        'description' => 'SMS blance',
+        'type' => 'int',
+        'size' => 'medium',
+        'not null' => FALSE,
+        'default' => 0,
+      ),
+      'data' => array(
+        'description' => 'configure data',
+        'type' => 'blob',
+        'serialize' => TRUE,
+        'serialized default' => 'a:0:{}',
+      ),
+    ),
+    'unique keys' => array(
+      'china_sms_api_machine_name' => array('machine_name')
+    ),
+    'primary key' => array('api_id'),
+  );
+
+  return $schema;
+}

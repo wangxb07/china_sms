@@ -1,0 +1,7 @@
+name = China SMS
+description = "SMS Framework provide chinese sms getway support."
+
+dependencies[] = ctools
+dependencies[] = libraries
+
+core = 7.x

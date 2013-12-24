@@ -1,0 +1,321 @@
+<?php
+
+/**
+ * @file
+ * China SMS module main file.
+ */
+
+/**
+ * const for this module
+ */
+define('CHINA_SMS_DISABLED', 0);
+define('CHINA_SMS_ENABLED', 1);
+define('CHINA_SMS_CANDIDATE', 0);
+define('CHINA_SMS_DEFAULT', 1);
+
+/**
+ * Implementation of hook_menu().
+ */
+function china_sms_menu() {
+  $items = array();
+
+  $items['admin/config/development/china_sms'] = array(
+    'title' => 'China SMS',
+    'page callback' => 'china_sms_plugin_settings_page',
+    'page arguments' => array(),
+    'description' => 'All plugins that china sms module supported',
+    'access arguments' => array('access china_sms plugins'),
+  );
+  $items['admin/config/development/china_sms/%/edit'] = array(
+    'title' => 'China SMS',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('china_sms_plugin_settings_form', 4),
+    'description' => 'All plugins that china sms module supported',
+    'access arguments' => array('access china_sms plugins'),
+  );
+  return $items;
+}
+
+/**
+ * Implement hook_permission().
+ */
+function china_sms_permission() {
+  return array(
+    'access china_sms plugins' => array(
+      'description' => t('View all china sms module supported plugins.'),
+      'title' => t('Access China sms plugins'),
+      'restrict access' => TRUE,
+    ),
+  );
+}
+
+/**
+ * Implements hook_ctools_plugin_type().
+ *
+ * Has plenty options. See ctools/help/plugins-creating.html
+ */
+function china_sms_ctools_plugin_type() {
+  return array(
+    'china_sms_api' => array(
+      'process' => 'china_sms_process',
+    ),
+  );
+}
+
+/**
+ * Implements hook_ctools_plugin_api()
+ */
+function china_sms_ctools_plugin_api($owner, $api) {
+  if ($owner == 'china_sms' && $api == 'china_sms_api') {
+    return array('version' => 2.0);
+  }
+}
+
+/**
+ * Implements hook_ctools_plugin_directory().
+ */
+function china_sms_ctools_plugin_directory($module, $plugin) {
+  if (($module == 'china_sms') && ($plugin == 'china_sms_api')) {
+    return 'plugins/china_sms_api';
+  }
+}
+
+/**
+ * send message to target number
+ * @param string $message message content.
+ * @param string $to target phone number
+ * @return boolean
+ */
+function china_sms_send($message, $to) {
+  ctools_include('plugins');
+  // get default plugin
+  $machine_name = china_sms_load_default_plugin();
+  $function = ctools_plugin_load_function('china_sms', 'china_sms_api', $machine_name, 'send');
+
+  if ($function) {
+    $conf = china_sms_plugin_config_load($machine_name);
+    return $function($conf, $message, $to);
+  }
+  return FALSE;
+}
+
+/**
+ * Implements hook_libraries_info()
+ */
+function china_sms_libraries_info() {
+  $libraries = array();
+  $libraries['nusoap'] = array(
+    'name' => 'nusoap',
+    'verdor url' => 'http://nusoap.sourceforge.net',
+    'download url' => 'http://sourceforge.net/projects/nusoap/files/latest/download',
+    'version arguments' => array(
+      'file' => 'lib/changelog',
+      'pattern' => '/version\s+([0-9\.]+)/',
+      'lines' => 2,
+      'cols' => 13,
+    ),
+    'path' => 'lib',
+    'files' => array(
+      'php' => array('nusoap.php'),
+    )
+  );
+  return $libraries;
+}
+
+/**
+ * menu page callback: admin/config/development/china_sms
+ */
+function china_sms_plugin_settings_page() {
+  ctools_include('plugins');
+  $plugins = ctools_get_plugins('china_sms', 'china_sms_api');
+
+  $header = array(
+    array('data' => t('Plugin')),
+    array('data' => t('Module')),
+    array('data' => t('Status')),
+    array('data' => t('Is Default')),
+    array('data' => t('Balance')),
+    array('data' => t('Operation')),
+  );
+
+  $result = db_select('china_sms_api', 'api')
+    ->fields('api', array('status', 'data', 'balance', 'is_default', 'machine_name'))
+    ->execute();
+
+  $plugin_existed = array();
+  while ($row = $result->fetchObject()) {
+    $plugin_existed[$row->machine_name] = array();
+    $plugin_existed[$row->machine_name]['status'] = $row->status;
+    $plugin_existed[$row->machine_name]['balance'] = $row->balance;
+    $plugin_existed[$row->machine_name]['is_default'] = $row->is_default;
+    $plugin_existed[$row->machine_name]['data'] = unserialize($row->data);
+  }
+
+  $rows = array();
+  foreach ($plugins as $key => $plugin) {
+    $row = array();
+
+    $row['name'] = $plugin['name'];
+    $row['module'] = $plugin['module'];
+
+    if (isset($plugin_existed[$key])) {
+      $row['status'] = $plugin_existed[$key]['status'];
+      $row['is_default'] = $plugin_existed[$key]['is_default'];
+      $row['balance'] = $plugin_existed[$key]['balance'];
+    }
+    else {
+      $row['status'] = t('Not configured');
+      $row['is_default'] = 'unkonw';
+      $row['balance'] = 'unkonw';
+    }
+
+    $row['operation'] = l(t('Edit'), 'admin/config/development/china_sms/' . $key . '/edit');
+
+    $rows[] = $row;
+  }
+
+  $build = array();
+
+  $build['plugin_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('There are no plugin defined.'),
+  );
+
+  return $build;
+}
+
+/**
+ * processor for china_sms_api plugin
+ */
+function china_sms_process(&$plugin, $info) {
+
+}
+
+/**
+ * Load plugin information and configure.
+ * @param $plugin_id
+ *  The plugin machine name
+ */
+function china_sms_plugin_config_load($plugin_id) {
+  $result = db_select('china_sms_api', 'api')
+    ->fields('api', array('status', 'data', 'balance', 'is_default', 'machine_name'))
+    ->condition('machine_name', $plugin_id)->execute();
+  $conf = $result->fetchObject();
+  if ($conf) {
+    $conf->data = unserialize($conf->data);
+  }
+  else {
+    $conf = new stdClass();
+    $conf->status = CHINA_SMS_ENABLED;
+    $conf->is_default = CHINA_SMS_CANDIDATE;
+    $conf->balance = 0;
+    $conf->data = array();
+  }
+  return $conf;
+}
+
+/**
+ * menu page callback: settings form
+ */
+function china_sms_plugin_settings_form($form, &$form_state, $plugin_id) {
+  ctools_include('plugins');
+  $form_builder = ctools_plugin_load_function('china_sms', 'china_sms_api', $plugin_id, 'settings form');
+  $plugin = ctools_get_plugins('china_sms', 'china_sms_api', $plugin_id);
+
+  $conf = china_sms_plugin_config_load($plugin_id);
+  $form['plugin_conf'] = array(
+    '#type' => 'container',
+    '#tree' => TRUE,
+  );
+  $form['plugin_conf'] += $form_builder($conf);
+
+  $form['machine_name'] = array(
+    '#type' => 'hidden',
+    '#value' => $plugin_id,
+  );
+
+  $form['balance'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Balance'),
+    '#default_value' => $conf->balance,
+    '#description' => t('SMS balance'),
+    '#required' => TRUE,
+  );
+
+  $form['is_default'] = array(
+    '#type' => 'radios',
+    '#title' => t('Is Default'),
+    '#default_value' => '',
+    '#options' => array(
+      CHINA_SMS_DEFAULT => t('Default'),
+      CHINA_SMS_CANDIDATE => t('Candidate'),
+    ),
+    '#default_value' => $conf->is_default,
+    '#description' => t('Set this SMS getway to default'),
+  );
+
+  $form['status'] = array(
+    '#type' => 'radios',
+    '#title' => t('Status'),
+    '#default_value' => '',
+    '#description' => t('Enabled or disabled'),
+    '#default_value' => $conf->status,
+    '#options' => array(
+      CHINA_SMS_ENABLED => t('Enable'),
+      CHINA_SMS_DISABLED => t('Disable'),
+    ),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+  );
+
+  return $form;
+}
+
+function china_sms_plugin_settings_form_validate($form, &$form_state) {
+}
+
+function china_sms_plugin_settings_form_submit($form, &$form_state) {
+  $data = $form_state['values']['plugin_conf'];
+  $is_default = $form_state['values']['is_default'];
+
+  if ($is_default == CHINA_SMS_DEFAULT) {
+    db_update('china_sms_api')->fields(array('is_default' => CHINA_SMS_CANDIDATE))->execute();
+  }
+
+  $result = db_merge('china_sms_api')
+    ->key(array('machine_name' => $form_state['values']['machine_name']))
+    ->fields(array(
+        'machine_name' => $form_state['values']['machine_name'],
+        'status' => $form_state['values']['status'],
+        'balance' => $form_state['values']['balance'],
+        'is_default' => $is_default,
+        'data' => serialize($data),
+      ))->execute();
+
+  drupal_set_message(t('plugin configure saved'), 'status');
+}
+
+/**
+ * get current default plugin
+ * @return
+ *  default plugin machine name
+ */
+function china_sms_load_default_plugin() {
+  $result = db_select('china_sms_api', 'api')
+    ->fields('api', array('machine_name'))
+    ->condition('is_default', CHINA_SMS_DEFAULT)
+    ->execute();
+
+  $row = $result->fetchObject();
+  if ($row) {
+    return $row->machine_name;
+  }
+  else {
+    return FALSE;
+  }
+}
