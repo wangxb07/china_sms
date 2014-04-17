@@ -23,7 +23,7 @@ function china_sms_c123_send($conf, $message, $to) {
   $c = $message;
   $csid = '';
   $t = '';
-  _china_sms_c123_send_sms($url, $ac, $authkey, $cgid, $m, $c, $csid, $t);
+  return _china_sms_c123_send_sms($url, $ac, $authkey, $cgid, $m, $c, $csid, $t);
 }
 
 function _china_sms_c123_send_sms($url, $ac, $authkey, $cgid, $m, $c, $csid, $t) {
@@ -50,12 +50,16 @@ function _china_sms_c123_send_sms($url, $ac, $authkey, $cgid, $m, $c, $csid, $t)
       $stat_arr[] = $stat;
     }
     if(is_array($stat_arr)) {
-      watchdog('china_sms', "send sms success by c123 plugin, response body !response_body", array('!response_body' => $re['result']), WATCHDOG_INFO);
+      // watchdog('china_sms', "send sms success by c123 plugin, response body
+      // !response_body", array('!response_body' => (string)$re['result']),
+      // WATCHDOG_INFO);
+      return TRUE;
     }
   }
   else { // 发送失败的返回值
-    $error = _china_sms_c123_message_mapping($re['result']);
+    $error = _china_sms_c123_message_mapping((string)$re['result']);
     watchdog('china_sms', "send sms failed by c123 plugin, error message !message", array('!message' => $error), WATCHDOG_ERROR);
+    return FALSE;
   }
 }
 
@@ -113,7 +117,7 @@ function _china_sms_c123_post_sms($url, $data = '') {
 
   $post = substr($post , 0 , -1);
   $len = strlen($post);
-  $fp = @fsockopen($host ,$port, $errno, $errstr, 10);
+  $fp = @fsockopen($host, $port, $errno, $errstr, 10);
 
   if (!$fp) {
     return "$errstr ($errno)\n";
