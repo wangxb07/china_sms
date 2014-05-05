@@ -1,0 +1,1 @@
+The SMS Framework provide chinese sms getway support.
