@@ -60,5 +60,108 @@ function china_sms_schema() {
     'primary key' => array('api_id'),
   );
 
+  /**
+   * Sended message content and remote message id
+   */
+  $schema['china_sms_messages'] = array(
+    'description' => 'Sended message information and remote message id',
+    'fields' => array(
+      'mid' => array(
+        'description' => 'The primary identifier for this table',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'remote_mid' => array(
+        'description' => 'Remote message id of this message',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+        'default' => 0,
+      ),
+      'mobile' => array(
+        'description' => 'The mobile of this message',
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => TRUE,
+      ),
+      'content' => array(
+        'description' => 'The content of this message',
+        'type' => 'text',
+        'not null' => TRUE,
+        'size' => 'big',
+      ),
+      'api_machine_name' => array(
+        'description' => 'This message reference api machine name',
+        'type' => 'varchar',
+        'length' => 128,
+        'not null' => TRUE,
+      ),
+      'timestamp' => array(
+        'description' => 'A Unix timestamp indicating when this message was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'indexes' => array(
+      'remote_mid' => array('remote_mid'),
+    ),
+    'foreign keys' => array(
+      'fk_china_sms_api' => array(
+        'table' => 'china_sms_api',
+        'columns' => array('api_machine_name' => 'machine_name'),
+      ),
+    ),
+    'primary key' => array('mid'),
+  );
+
+  /**
+   * sended message exception status log
+   */
+  $schema['china_sms_messages_log'] = array(
+    'description' => 'Log for sended messages',
+    'fields' => array(
+      'lid' => array(
+        'description' => 'The primary identifier for this table',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'mid' => array(
+        'description' => 'message id',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'status' => array(
+        'description' => 'status of message',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'default' => 0,
+      ),
+      'message' => array(
+        'description' => 'log message',
+        'type' => 'text',
+        'size' => 'big',
+        'not null' => TRUE,
+      ),
+      'timestamp' => array(
+        'description' => 'A Unix timestamp indicating when this message was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+    ),
+    'foreign keys' => array(
+      'fk_china_sms_messages' => array(
+        'table' => 'china_sms_messages',
+        'columns' => array('mid' => 'mid'),
+      ),
+    ),
+    'primary key' => array('lid'),
+  );
+
   return $schema;
 }

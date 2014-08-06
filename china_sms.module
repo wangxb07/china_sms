@@ -90,13 +90,59 @@ function china_sms_send($message, $to) {
   ctools_include('plugins');
   // get default plugin
   $machine_name = china_sms_load_default_plugin();
-  $function = ctools_plugin_load_function('china_sms', 'china_sms_api', $machine_name, 'send');
+  $send_function = ctools_plugin_load_function('china_sms', 'china_sms_api', $machine_name, 'send');
+  $result_parse_function = ctools_plugin_load_function('china_sms', 'china_sms_api', $machine_name, 'result_parse');
 
   if ($function) {
     $conf = china_sms_plugin_config_load($machine_name);
-    return $function($conf, $message, $to);
+    $received_data =  $send_function($conf, $message, $to);
+    // parse the received data from api.
+    $result = array(
+      'remote_mid' => 0,
+    );
+    $result = $result_parse_function($received_data);
+
+    if (china_sms_messages_save($result['remote_mid'], $to, $message, $machine_name)) {
+      return TRUE;
+    }
+    else {
+      return FALSE;
+    }
   }
   return FALSE;
+}
+
+/**
+ * save new message information.
+ * @param string $remote_mid remote message id
+ * @param string $mobile mobile number
+ * @param string $content message content
+ * @param string $api_machine_name
+ *
+ * @return void
+ */
+function china_sms_messages_save($remote_mid, $mobile, $content, $api_machine_name) {
+  return db_insert('china_sms_messages')->fields(array(
+      'remote_mid' => $remote_mid,
+      'mobile' => $mobile,
+      'content' => $content,
+      'api_machine_name' => $api_machine_name,
+      'timestamp' => REQUEST_TIME,
+    ))->execute();
+}
+
+/**
+ * save message status log
+ * @param int $mid
+ * @param int $status
+ * @param string $message
+ */
+function china_sms_messages_log_save($mid, $status, $message) {
+  return db_insert('china_sms_messages_log')->fields(array(
+      'mid' => $mid,
+      'status' => $status,
+      'message' => $message,
+    ))->execute();
 }
 
 /**

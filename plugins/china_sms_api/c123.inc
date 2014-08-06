@@ -4,6 +4,7 @@ $plugin = array(
   'name' => 'C123',
   'module' => 'china_sms',
   'send' => 'china_sms_c123_send',
+  'result_parse' => 'china_sms_result_parse',
   'settings form' => 'china_sms_c123_settings_form',
 );
 
@@ -24,6 +25,10 @@ function china_sms_c123_send($conf, $message, $to) {
   $csid = '';
   $t = '';
   return _china_sms_c123_send_sms($url, $ac, $authkey, $cgid, $m, $c, $csid, $t);
+}
+
+function china_sms_result_parse($received_data) {
+
 }
 
 function _china_sms_c123_send_sms($url, $ac, $authkey, $cgid, $m, $c, $csid, $t) {
